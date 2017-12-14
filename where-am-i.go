@@ -17,6 +17,7 @@ var t *template.Template
 func main() {
 	var port int
 	flag.IntVar(&port, "port", 8888, "specify server port, default 8888")
+	flag.Parse()
 
 	q = qqwry.NewQQwry("qqwry.dat")
 	t, _ = template.ParseFiles("tmpl/index.html")
@@ -48,19 +49,20 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		ipx := r.Form["ipx"][0]
 		var message string
 		if net.ParseIP(ipx) == nil {
-			message = ipx + "格式不合法。"
+			message = ipx + "：格式不合法。"
 		} else {
 			q.Find(ipx)
 			message = ipx + "的地址是： " + q.Country + q.City
 		}
 
-		country, city, err := getCountryAndCity(r.RemoteAddr)
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
 			io.WriteString(w, "internal error")
 			return
 		}
+		q.Find(ip)
 
-		t.Execute(w, map[string]string{"Country": country, "City": city, "Ip": r.RemoteAddr, "Message": message})
+		t.Execute(w, map[string]string{"Country": q.Country, "City": q.City, "Ip": ip, "Message": message})
 	}
 	return
 }
