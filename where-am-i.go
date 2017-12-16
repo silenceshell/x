@@ -22,14 +22,15 @@ var stmtCount *sql.Stmt
 
 func main() {
 	var port int
-	var mysqlHost string
-	var mysqlPassword string
+	var mysqlHost, mysqlUser, mysqlPassword string
+
 	flag.IntVar(&port, "port", 8888, "specify server port, default 8888")
 	flag.StringVar(&mysqlHost, "host", "localhost", "specify mysql host, default localhost")
+	flag.StringVar(&mysqlUser, "user", "root", "specify mysql user, default root")
 	flag.StringVar(&mysqlPassword, "password", "", "specify mysql password, default empty")
 	flag.Parse()
 
-	db, err := sql.Open("mysql", fmt.Sprintf("root:%s@/x", mysqlPassword))
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:3306)/x", mysqlUser, mysqlPassword, mysqlHost))
 	if err != nil {
     	panic(err.Error())
 	}
@@ -91,8 +92,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" {
 		t, _ = template.ParseFiles("tmpl/index.html")
-		if nil != t.Execute(w, tmplHash) {
-			io.WriteString(w, "internal error: 501")
+		if err = t.Execute(w, tmplHash); err!=nil {
+			io.WriteString(w, "internal error: 501"+err.Error())
 			return
 		}
 	} else if r.Method == "POST" {
