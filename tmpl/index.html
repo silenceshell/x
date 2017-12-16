@@ -4,19 +4,41 @@
     <meta charset="UTF-8">
     <title>ip search</title>
 	<style type="text/css">
-    hr.style-one {
-        border: 0;
-        height: 1px;
-        background: #333;
-        background-image: linear-gradient(to right, #ccc, #333, #ccc);
-    }
-		body{text-align:center;}
-		div{width:778px;margin:0 auto;background:#fff;text-align:left;}
+html {
+  position: relative;
+  min-height: 100%;
+}
+body {
+  /* Margin bottom by footer height */
+  margin-bottom: 60px;
+}
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  /* Set the fixed height of the footer here */
+  height: 60px;
+  line-height: 60px; /* Vertically center the text there */
+  background-color: #f5f5f5;
+}
+.container {
+  width: auto;
+  max-width: 1024px;
+  padding: 0 15px;
+}
+hr.style-one {
+    border: 0;
+    height: 1px;
+    background: #333;
+    background-image: linear-gradient(to right, #ccc, #333, #ccc);
+}
 	</style>
+    <script src="//cdn.bootcss.com/jquery/1.11.3/jquery.min.js"></script>
     <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
     <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 
+    <link href="sticky-footer.css" rel="stylesheet">
 
 </head>
 <body>
@@ -46,6 +68,7 @@
 
             </form>
         </div>
+
     </div>
 
     <div class="row">
@@ -57,7 +80,18 @@
             </p>
         </div>
     </div>
+
 </div>
 
+
+    <footer class="footer">
+        <div class="container">
+        <span class="text-muted">您是第{{.VisitorCount}}位访客，欢迎再来！</span>
+      </div>
+        <!--<div class="col-sm-3 col-md-3">-->
+            <!--您是第{{.VisitorCount}}位访客，欢迎再来！-->
+            <!--&lt;!&ndash;<p>Contact information: <a href="mailto:me@ieevee.com">me@ieevee.com</a>.</p>&ndash;&gt;-->
+        <!--</div>-->
+    </footer>
 </body>
 </html>
