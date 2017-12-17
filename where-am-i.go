@@ -1,18 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	flag "github.com/spf13/pflag"
 	"github.com/yinheli/qqwry"
 	"html/template"
 	"io"
 	"log"
 	"net"
 	"net/http"
-	flag "github.com/spf13/pflag"
-	"database/sql"
- 	_ "github.com/go-sql-driver/mysql"
-	"time"
 	"strconv"
+	"time"
 	//"os"
 	"k8s.io/kubernetes/pkg/util/rand"
 )
@@ -34,7 +34,7 @@ func main() {
 
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:3306)/x", mysqlUser, mysqlPassword, mysqlHost))
 	if err != nil {
-    	panic(err.Error())
+		panic(err.Error())
 	}
 	defer db.Close()
 
@@ -94,7 +94,7 @@ func guaHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func insertAndGetVisitorCount(ip string) (int, error){
+func insertAndGetVisitorCount(ip string) (int, error) {
 	var count int
 	now := time.Now()
 	if _, err := stmtIns.Exec(ip, now.Format("2006-01-02 15:04:05")); err != nil {
@@ -133,16 +133,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tmplHash["VisitorCount"] = strconv.Itoa(count)
 
 	if r.Method == "GET" {
-		//t, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/index.html", "tmpl/footer.html")
-		//t, _ = template.ParseFiles("tmpl/index.html")
-		//t.ExecuteTemplate(w, "tmpl/head.html", nil)
 		indexT.ExecuteTemplate(w, "index", tmplHash)
-		//t.ExecuteTemplate(w, "tmpl/footer.html", nil)
-		//if err = t.Execute(w, tmplHash); err!=nil {
-		//	io.WriteString(w, "internal error: 501"+err.Error())
-		//	return
-		//}
-
 	} else if r.Method == "POST" {
 		r.ParseForm()
 
@@ -156,7 +147,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		tmplHash["Message"] = message
 
-		if nil != indexT.Execute(w, tmplHash) {
+		if nil != indexT.ExecuteTemplate(w, "index", tmplHash) {
+		//if nil != indexT.Execute(w, tmplHash) {
 			io.WriteString(w, "internal error: 502")
 			return
 		}
