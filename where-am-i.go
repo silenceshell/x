@@ -18,7 +18,7 @@ import (
 )
 
 var q *qqwry.QQwry
-var t *template.Template
+var indexT, guaT *template.Template
 var stmtIns *sql.Stmt
 var stmtCount *sql.Stmt
 
@@ -52,7 +52,8 @@ func main() {
 
 	q = qqwry.NewQQwry("qqwry.dat")
 
-	t, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/index.html", "tmpl/footer.html")
+	indexT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/index.html", "tmpl/footer.html")
+	guaT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/gua.html", "tmpl/footer.html")
 	//t, _ = template.ParseFiles("tmpl/index.html")
 
 	http.HandleFunc("/", indexHandler)
@@ -76,7 +77,6 @@ func guaHandler(w http.ResponseWriter, r *http.Request) {
 	var ip string
 	var tmplHash map[string]string = make(map[string]string)
 
-
 	if ip, _, err = net.SplitHostPort(r.RemoteAddr); err != nil {
 		io.WriteString(w, "internal error: invalid parameter.")
 		return
@@ -90,8 +90,7 @@ func guaHandler(w http.ResponseWriter, r *http.Request) {
 	tmplHash["GuaGua"] = yiJing[rand.Intn(len(yiJing))]
 
 	if r.Method == "GET" {
-		t, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/gua.html", "tmpl/footer.html")
-		t.ExecuteTemplate(w, "gua", tmplHash)
+		guaT.ExecuteTemplate(w, "gua", tmplHash)
 	}
 }
 
@@ -99,11 +98,9 @@ func insertAndGetVisitorCount(ip string) (int, error){
 	var count int
 	now := time.Now()
 	if _, err := stmtIns.Exec(ip, now.Format("2006-01-02 15:04:05")); err != nil {
-		//io.WriteString(w, "internal error x")
 		return -1, fmt.Errorf("internal error x")
 	}
 	if nil != stmtCount.QueryRow().Scan(&count) {
-		//io.WriteString(w, "internal error y")
 		return -1, fmt.Errorf("internal error y")
 	}
 
@@ -136,10 +133,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tmplHash["VisitorCount"] = strconv.Itoa(count)
 
 	if r.Method == "GET" {
-		t, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/index.html", "tmpl/footer.html")
+		//t, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/index.html", "tmpl/footer.html")
 		//t, _ = template.ParseFiles("tmpl/index.html")
 		//t.ExecuteTemplate(w, "tmpl/head.html", nil)
-		t.ExecuteTemplate(w, "index", tmplHash)
+		indexT.ExecuteTemplate(w, "index", tmplHash)
 		//t.ExecuteTemplate(w, "tmpl/footer.html", nil)
 		//if err = t.Execute(w, tmplHash); err!=nil {
 		//	io.WriteString(w, "internal error: 501"+err.Error())
@@ -159,7 +156,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		tmplHash["Message"] = message
 
-		if nil != t.Execute(w, tmplHash) {
+		if nil != indexT.Execute(w, tmplHash) {
 			io.WriteString(w, "internal error: 502")
 			return
 		}
