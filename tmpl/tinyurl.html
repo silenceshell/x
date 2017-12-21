@@ -1,4 +1,4 @@
-{{define "gua"}}
+{{define "tinyurl"}}
 {{template "head"}}
 
 <div class="container">
@@ -13,8 +13,8 @@
 
 
     <div class="row">
-        <div class="col-sm-6 col-md-6">
-            <form class="form-inline" action = "/index" method = "POST">
+        <div class="col-sm-12 col-md-12">
+            <form class="form-inline" action = "/tinyurl" method = "POST">
               <div class="form-group">
                 <label for="url">请输入您想缩短的链接</label>
                 <input type="text" class="form-control" id="url" name="url" placeholder="http://...">
