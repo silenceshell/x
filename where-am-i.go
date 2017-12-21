@@ -19,14 +19,14 @@ import (
 	"k8s.io/kubernetes/pkg/util/rand"
 
 	"bytes"
-	"strings"
 	"math"
+	"strings"
 )
 
 var q *qqwry.QQwry
 var indexT, guaT, tinyUrlT *template.Template
 var urlInsert, urlUpdate, urlSelect, stmtIns, stmtCount *sql.Stmt
-var ALPHABET string = "23456789bcdfghjkmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ-_";
+var ALPHABET string = "23456789bcdfghjkmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ-_"
 var BASE int64 = int64(len(ALPHABET))
 
 func main() {
@@ -46,7 +46,6 @@ func main() {
 	defer db.Close()
 
 	urlInsert, err = db.Prepare(`INSERT INTO shorturl ( long_url, short_url, create_time ) VALUES ( ?, ?, ? )`)
-	//urlInsert, err = db.Prepare(`INSERT INTO shorturl VALUES ( ?, ? )`)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -63,7 +62,6 @@ func main() {
 		panic(err.Error())
 	}
 	defer urlUpdate.Close()
-
 
 	stmtIns, err = db.Prepare("INSERT INTO visitor VALUES( ?, ? )") // ? = ip, access time
 	if err != nil {
@@ -98,8 +96,8 @@ func main() {
 func encode(num int64) string {
 	var b bytes.Buffer
 	for num > 0 {
-		b.WriteByte(ALPHABET[num % BASE])
-		num = num / BASE;
+		b.WriteByte(ALPHABET[num%BASE])
+		num = num / BASE
 	}
 	return b.String()
 }
@@ -108,9 +106,9 @@ func decode(str string) int64 {
 	var id int64 = 0
 	var size int64 = int64(len(str))
 	var i int64
-	for i =0; i<size; i++ {
+	for i = 0; i < size; i++ {
 		var value int64 = int64(strings.IndexByte(ALPHABET, str[i]))
-		id += value * int64(math.Pow(float64(BASE), float64(size -i-1)))
+		id += value * int64(math.Pow(float64(BASE), float64(size-i-1)))
 	}
 
 	return id
@@ -124,12 +122,12 @@ func getTinyUrl(url string) (string, error) {
 
 	now := time.Now()
 	if res, err := urlInsert.Exec(url, "", now.Format("2006-01-02 15:04:05")); err == nil {
-        id, err := res.LastInsertId()
-        if err != nil {
-            println("Error:", err.Error())
-        } else {
-            println("LastInsertId:", id)
-        }
+		id, err := res.LastInsertId()
+		if err != nil {
+			println("Error:", err.Error())
+		} else {
+			println("LastInsertId:", id)
+		}
 
 		var idStr string = encode(id)
 		if _, err := urlUpdate.Exec(idStr, id); err != nil {
@@ -165,7 +163,7 @@ func tinyurlHandler(w http.ResponseWriter, r *http.Request) {
 		url := r.Form["url"][0]
 
 		newUrl, _ := getTinyUrl(url)
-		message := "短地址：" + r.Host + "/" + newUrl
+		message := url + " 生成的短链接为：" + r.Host + "/" + newUrl
 		//message := fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, newUrl, newUrl)
 
 		tmplHash["Message"] = message
@@ -178,7 +176,6 @@ func tinyurlHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
-	//indexHandler(w, r)
 	path := r.URL.Path
 	fmt.Println(path)
 	if path == "/" {
@@ -188,9 +185,8 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 		path = path[1:]
 		longUrl := decode(path)
 		var newPath string
-		//res, err := urlSelect.Exec(longUrl)
 		if nil != urlSelect.QueryRow(longUrl).Scan(&newPath) {
-			return// -1, fmt.Errorf("internal error")
+			return
 		}
 		http.Redirect(w, r, newPath, http.StatusFound)
 	}
@@ -282,7 +278,6 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		tmplHash["Message"] = message
 
 		if nil != indexT.ExecuteTemplate(w, "index", tmplHash) {
-			//if nil != indexT.Execute(w, tmplHash) {
 			io.WriteString(w, "internal error: 502")
 			return
 		}
