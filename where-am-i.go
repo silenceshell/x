@@ -18,13 +18,14 @@ import (
 	"encoding/hex"
 	"k8s.io/kubernetes/pkg/util/rand"
 
+	"bytes"
 )
 
 var q *qqwry.QQwry
 var indexT, guaT, tinyUrlT *template.Template
 var urlInsert, urlUpdate, stmtIns, stmtCount *sql.Stmt
 var ALPHABET string = "23456789bcdfghjkmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ-_";
-var BASE int = len(ALPHABET)
+var BASE int64 = int64(len(ALPHABET))
 
 func main() {
 	var port int
@@ -42,14 +43,15 @@ func main() {
 	}
 	defer db.Close()
 
-	urlInsert, err = db.Prepare("INSERT INTO shorturl (long, create_time) VALUES( ?, ? )")
+	urlInsert, err = db.Prepare(`INSERT INTO shorturl ( long_url, short_url, create_time ) VALUES ( ?, ?, ? )`)
+	//urlInsert, err = db.Prepare(`INSERT INTO shorturl VALUES ( ?, ? )`)
 	if err != nil {
 		panic(err.Error())
 	}
 	defer urlInsert.Close()
 
 
-	urlUpdate, err = db.Prepare("UPDATE shorturl SET short = ? WHERE id = ?")
+	urlUpdate, err = db.Prepare("UPDATE shorturl SET short_url = ? WHERE id = ?")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -86,12 +88,14 @@ func main() {
 }
 
 func encode(num int64) string {
-	var str []string = make([]string, 0, 6)
+	var b bytes.Buffer
+	//var str []string = make([]string, 0, 6)
 	for num > 0 {
-		str = append(str, string(ALPHABET[num % BASE]))
+		b.WriteByte(ALPHABET[num % BASE])
+		//str = append(str, string())
 		num = num / BASE;
 	}
-	return str
+	return b.String()
 		//StringBuilder str = new StringBuilder();
 		//while (num > 0) {
 		//	str.insert(0, ALPHABET.charAt(num % BASE));
@@ -100,7 +104,7 @@ func encode(num int64) string {
 		//return str.toString();
 }
 
-func getTinyUrl(url string) string {
+func getTinyUrl(url string) (string, error) {
 	hasher := md5.New()
 	hasher.Write([]byte(url))
 
@@ -148,7 +152,7 @@ func tinyurlHandler(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		url := r.Form["url"][0]
 
-		newUrl := getTinyUrl(url)
+		newUrl, _ := getTinyUrl(url)
 
 		var message string = "短地址：" + newUrl
 		tmplHash["Message"] = message
