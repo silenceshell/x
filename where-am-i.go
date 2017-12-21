@@ -19,11 +19,13 @@ import (
 	"k8s.io/kubernetes/pkg/util/rand"
 
 	"bytes"
+	"strings"
+	"math"
 )
 
 var q *qqwry.QQwry
 var indexT, guaT, tinyUrlT *template.Template
-var urlInsert, urlUpdate, stmtIns, stmtCount *sql.Stmt
+var urlInsert, urlUpdate, urlSelect, stmtIns, stmtCount *sql.Stmt
 var ALPHABET string = "23456789bcdfghjkmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ-_";
 var BASE int64 = int64(len(ALPHABET))
 
@@ -50,12 +52,18 @@ func main() {
 	}
 	defer urlInsert.Close()
 
-
 	urlUpdate, err = db.Prepare("UPDATE shorturl SET short_url = ? WHERE id = ?")
 	if err != nil {
 		panic(err.Error())
 	}
 	defer urlUpdate.Close()
+
+	urlSelect, err = db.Prepare("SELECT long_url FROM shorturl WHERE id = ?")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer urlUpdate.Close()
+
 
 	stmtIns, err = db.Prepare("INSERT INTO visitor VALUES( ?, ? )") // ? = ip, access time
 	if err != nil {
@@ -89,19 +97,23 @@ func main() {
 
 func encode(num int64) string {
 	var b bytes.Buffer
-	//var str []string = make([]string, 0, 6)
 	for num > 0 {
 		b.WriteByte(ALPHABET[num % BASE])
-		//str = append(str, string())
 		num = num / BASE;
 	}
 	return b.String()
-		//StringBuilder str = new StringBuilder();
-		//while (num > 0) {
-		//	str.insert(0, ALPHABET.charAt(num % BASE));
-		//	num = num / BASE;
-		//}
-		//return str.toString();
+}
+
+func decode(str string) int64 {
+	var id int64 = 0
+	var size int64 = int64(len(str))
+	var i int64
+	for i =0; i<size; i++ {
+		var value int64 = int64(strings.IndexByte(ALPHABET, str[i]))
+		id += value * int64(math.Pow(float64(BASE), float64(size -i-1)))
+	}
+
+	return id
 }
 
 func getTinyUrl(url string) (string, error) {
@@ -111,7 +123,7 @@ func getTinyUrl(url string) (string, error) {
 	hex.EncodeToString(hasher.Sum(nil))
 
 	now := time.Now()
-	if res, err := urlInsert.Exec(url, "", now.Format("2006-01-02 15:04:05")); err != nil {
+	if res, err := urlInsert.Exec(url, "", now.Format("2006-01-02 15:04:05")); err == nil {
         id, err := res.LastInsertId()
         if err != nil {
             println("Error:", err.Error())
@@ -147,17 +159,18 @@ func tinyurlHandler(w http.ResponseWriter, r *http.Request) {
 	tmplHash["VisitorCount"] = strconv.Itoa(count)
 
 	if r.Method == "GET" {
-		indexT.ExecuteTemplate(w, "tinyurl", tmplHash)
+		tinyUrlT.ExecuteTemplate(w, "tinyurl", tmplHash)
 	} else if r.Method == "POST" {
 		r.ParseForm()
 		url := r.Form["url"][0]
 
 		newUrl, _ := getTinyUrl(url)
+		message := "短地址：" + r.Host + "/" + newUrl
+		//message := fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, newUrl, newUrl)
 
-		var message string = "短地址：" + newUrl
 		tmplHash["Message"] = message
 
-		if nil != indexT.ExecuteTemplate(w, "tinyurl", tmplHash) {
+		if nil != tinyUrlT.ExecuteTemplate(w, "tinyurl", tmplHash) {
 			io.WriteString(w, "internal error: 502")
 			return
 		}
@@ -169,19 +182,18 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	fmt.Println(path)
 	if path == "/" {
-		io.WriteString(w, "hello boy.")
+		http.Redirect(w, r, "/index", http.StatusFound)
 		return
+	} else {
+		path = path[1:]
+		longUrl := decode(path)
+		var newPath string
+		//res, err := urlSelect.Exec(longUrl)
+		if nil != urlSelect.QueryRow(longUrl).Scan(&newPath) {
+			return// -1, fmt.Errorf("internal error")
+		}
+		http.Redirect(w, r, newPath, http.StatusFound)
 	}
-
-	var newPath string = "www.baidu.com"
-	if path == "/abcde" {
-		newPath = "https://www.baidu.com/s?wd=%E5%93%88%E5%93%88%E5%93%88%E5%93%88&rsv_spt=1&rsv_iqid=0x8d3ff876000032ae&issp=1&f=3&rsv_bp=1&rsv_idx=2&ie=utf-8&rqlang=cn&tn=baiduhome_pg&rsv_enter=1&oq=hhhh&inputT=2997&rsv_t=3dd7RQr4AlMzBIPfHVuNzVIaE8Cc0WWg81enKr2u0sKzRc2DFt%2BoUoOZVKsVOY%2FY4i8d&rsv_sug3=5&rsv_sug1=5&rsv_sug7=100&rsv_pq=b3f2ba48000046e6&rsv_sug2=1&prefixsug=hhhh&rsp=3&rsv_sug4=3384&rsv_sug=1"
-	}
-
-	http.Redirect(w, r, newPath, http.StatusFound)
-
-	//w.WriteHeader(302)
-	//w.Header().Set("Location", newPath)
 
 	return
 }
@@ -238,6 +250,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "internal error: invalid parameter.")
 		return
 	}
+	fmt.Println(ip)
 	q.Find(ip)
 	clientCountry = q.Country
 	clientCity = q.City
