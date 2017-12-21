@@ -13,5 +13,3 @@ CREATE TABLE `shorturl` (
   `create_time` datetime NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-INSERT INTO shorturl ( long_url, short_url, create_time ) VALUES ("xxxxx", "x", "xxxx");
