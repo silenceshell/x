@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 Restart=always
-ExecStart=/root/where-am-i --port 88 --password hubt@292
+ExecStart=/root/where-am-i --port 88 --password
 
 [Install]
 WantedBy=multi-user.target
