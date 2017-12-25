@@ -87,10 +87,19 @@ func main() {
 	http.HandleFunc("/tinyurl", tinyurlHandler)
 	http.HandleFunc("/", defaultHandler)
 	var address string = fmt.Sprintf(":%d", port)
-	err = http.ListenAndServe(address, nil)
-	if err != nil {
-		log.Fatal("server start failed.", err)
-	}
+
+	var stopCh chan int = make(chan int)
+	go func() {
+		err = http.ListenAndServe(address, nil)
+		if err != nil {
+			log.Fatal("server start failed.", err)
+		}
+		stopCh <- 1
+	}()
+
+	fmt.Printf("start http server at %s", address)
+	<- stopCh
+
 }
 
 func encode(num int64) string {
@@ -177,7 +186,7 @@ func tinyurlHandler(w http.ResponseWriter, r *http.Request) {
 
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-	fmt.Println(path)
+
 	if path == "/" {
 		http.Redirect(w, r, "/index", http.StatusFound)
 		return
