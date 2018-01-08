@@ -23,10 +23,11 @@ import (
 	"strings"
 	"io/ioutil"
 	"encoding/json"
+	"encoding/base64"
 )
 
 var q *qqwry.QQwry
-var indexT, guaT, tinyUrlT, macT *template.Template
+var indexT, guaT, tinyUrlT, macT, picT *template.Template
 var urlInsert, urlUpdate, urlSelect, stmtIns, stmtCount *sql.Stmt
 var ALPHABET string = "23456789bcdfghjkmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ-_"
 var BASE int64 = int64(len(ALPHABET))
@@ -83,11 +84,14 @@ func main() {
 	guaT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/gua.html", "tmpl/footer.html")
 	tinyUrlT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/tinyurl.html", "tmpl/footer.html")
 	macT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/mac.html", "tmpl/footer.html")
+	picT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/pic.html", "tmpl/footer.html")
 
 	http.HandleFunc("/index", indexHandler)
 	http.HandleFunc("/gua", guaHandler)
 	http.HandleFunc("/tinyurl", tinyurlHandler)
 	http.HandleFunc("/mac", macAddrHandler)
+	http.HandleFunc("/pic", picHandler)
+	//http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/", defaultHandler)
 
 	var address string = fmt.Sprintf(":%d", port)
@@ -104,6 +108,55 @@ func main() {
 	fmt.Printf("start http server at %s\n", address)
 	<- stopCh
 
+}
+
+func picHandler(w http.ResponseWriter, r *http.Request) {
+	var count int
+	var err error
+	var ip string
+	var tmplHash map[string]string = make(map[string]string)
+
+	if ip, _, err = net.SplitHostPort(r.RemoteAddr); err != nil {
+		io.WriteString(w, "internal error: invalid parameter.")
+		return
+	}
+	count, err = insertAndGetVisitorCount(ip)
+	if err != nil {
+		io.WriteString(w, err.Error())
+		return
+	}
+	tmplHash["VisitorCount"] = strconv.Itoa(count)
+
+	if r.Method == "GET" {
+		picT.ExecuteTemplate(w, "pic", tmplHash)
+	} else if r.Method == "POST" {
+		r.ParseMultipartForm(32 << 20)
+		file, handler, err := r.FormFile("pic")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer file.Close()
+
+		buf := make([]byte, handler.Size)
+		file.Read(buf)
+
+		imgBase64Str := base64.StdEncoding.EncodeToString(buf)
+
+		// Embed into an html without PNG file
+		//img2html := "<html><body><img src=\"data:image/png;base64," + imgBase64Str + "\" /></body></html>"
+		//io.WriteString(w, img2html)
+
+		message := "data:image/png;base64," + imgBase64Str
+		tmplHash["Message"] = message
+		tmplHash["Image"] = message
+
+		if nil != picT.ExecuteTemplate(w, "pic", tmplHash) {
+			io.WriteString(w, "internal error: 502")
+			return
+		}
+
+	}
 }
 
 type macInfo struct {
