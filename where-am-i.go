@@ -21,10 +21,12 @@ import (
 	"bytes"
 	"math"
 	"strings"
+	"io/ioutil"
+	"encoding/json"
 )
 
 var q *qqwry.QQwry
-var indexT, guaT, tinyUrlT *template.Template
+var indexT, guaT, tinyUrlT, macT *template.Template
 var urlInsert, urlUpdate, urlSelect, stmtIns, stmtCount *sql.Stmt
 var ALPHABET string = "23456789bcdfghjkmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ-_"
 var BASE int64 = int64(len(ALPHABET))
@@ -80,12 +82,14 @@ func main() {
 	indexT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/index.html", "tmpl/footer.html")
 	guaT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/gua.html", "tmpl/footer.html")
 	tinyUrlT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/tinyurl.html", "tmpl/footer.html")
-	//t, _ = template.ParseFiles("tmpl/index.html")
+	macT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/mac.html", "tmpl/footer.html")
 
 	http.HandleFunc("/index", indexHandler)
 	http.HandleFunc("/gua", guaHandler)
 	http.HandleFunc("/tinyurl", tinyurlHandler)
+	http.HandleFunc("/mac", macAddrHandler)
 	http.HandleFunc("/", defaultHandler)
+
 	var address string = fmt.Sprintf(":%d", port)
 
 	var stopCh chan int = make(chan int)
@@ -97,9 +101,79 @@ func main() {
 		stopCh <- 1
 	}()
 
-	fmt.Printf("start http server at %s", address)
+	fmt.Printf("start http server at %s\n", address)
 	<- stopCh
 
+}
+
+type macInfo struct {
+	mac 	string
+	company string
+	address string
+}
+
+func getMacInfo(macAddress string) (*macInfo, error) {
+	var macInfo *macInfo = &macInfo{}
+	macInfo.mac = macAddress
+
+	resp, err := http.Get(fmt.Sprintf("https://macvendors.co/api/%s/", macAddress))
+	defer resp.Body.Close()
+	if err!= nil {
+		return nil, err
+	}
+
+	//result := []byte(`{"result":{"company":"Apple, Inc.","mac_prefix":"08:74:02","address":"1 Infinite Loop,Cupertino  CA  95014,US","start_hex":"087402000000","end_hex":"087402FFFFFF","country":"US","type":"MA-L"}}`)
+	result, err := ioutil.ReadAll(resp.Body)
+	if err!= nil {
+		return nil, err
+	}
+	var rat map[string]map[string]string
+	if err := json.Unmarshal(result, &rat); err != nil {
+        return nil, err
+    }
+
+	macInfo.company = rat["result"]["company"]
+	macInfo.address = rat["result"]["address"]
+
+	return macInfo, nil
+}
+
+func macAddrHandler(w http.ResponseWriter, r *http.Request) {
+	var count int
+	var err error
+	var ip string
+	var tmplHash map[string]string = make(map[string]string)
+
+	if ip, _, err = net.SplitHostPort(r.RemoteAddr); err != nil {
+		io.WriteString(w, "internal error: invalid parameter.")
+		return
+	}
+	count, err = insertAndGetVisitorCount(ip)
+	if err != nil {
+		io.WriteString(w, err.Error())
+		return
+	}
+	tmplHash["VisitorCount"] = strconv.Itoa(count)
+
+	if r.Method == "GET" {
+		macT.ExecuteTemplate(w, "mac", tmplHash)
+	} else if r.Method == "POST" {
+		r.ParseForm()
+		macAddress := r.Form["mac"][0]
+
+		macInfo, err := getMacInfo(macAddress)
+		if err != nil {
+			io.WriteString(w, "internal error: 502")
+			return
+		}
+		message := fmt.Sprintf("%s 的厂家是：%s, 厂家地址是：%s", macAddress, macInfo.company, macInfo.address)
+		tmplHash["Message"] = message
+
+		if nil != macT.ExecuteTemplate(w, "mac", tmplHash) {
+			io.WriteString(w, "internal error: 502")
+			return
+		}
+	}
 }
 
 func encode(num int64) string {
