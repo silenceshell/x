@@ -19,13 +19,13 @@ import (
 	"k8s.io/kubernetes/pkg/util/rand"
 
 	"bytes"
-	"math"
-	"strings"
-	"io/ioutil"
-	"encoding/json"
 	"encoding/base64"
-	"os"
 	"encoding/csv"
+	"encoding/json"
+	"io/ioutil"
+	"math"
+	"os"
+	"strings"
 )
 
 var q *qqwry.QQwry
@@ -110,7 +110,7 @@ func main() {
 	}()
 
 	fmt.Printf("start http server at %s\n", address)
-	<- stopCh
+	<-stopCh
 
 }
 
@@ -164,24 +164,25 @@ func picHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type org struct {
-	name string
+	name    string
 	address string
 }
 type macInfo struct {
-	mac 	string
+	mac string
 	org
 }
+
 var macVendorHashMap map[string]org
 
 func macDBInit() error {
-	f, err:= os.Open("oui.csv")
+	f, err := os.Open("oui.csv")
 	if err != nil {
 		panic("file open failed")
 	}
 	defer f.Close()
 
 	r := csv.NewReader(f)
-	macVendorHashMap = make(map[string]org);
+	macVendorHashMap = make(map[string]org)
 	for {
 		record, err := r.Read()
 		if err == io.EOF {
@@ -191,7 +192,7 @@ func macDBInit() error {
 			log.Fatal(err)
 		}
 
-		var o org = org{name:record[2], address:record[3]}
+		var o org = org{name: record[2], address: record[3]}
 		macVendorHashMap[record[1]] = o
 	}
 
@@ -208,7 +209,7 @@ func getMacInfoLocal(macAddress string) (*macInfo, error) {
 	}
 	fmt.Println(time.Now().Sub(begin))
 
-	var info *macInfo = &macInfo{mac:macAddress, org:org{name:v.name, address:v.address}}
+	var info *macInfo = &macInfo{mac: macAddress, org: org{name: v.name, address: v.address}}
 
 	return info, nil
 }
@@ -219,20 +220,20 @@ func getMacInfo(macAddress string) (*macInfo, error) {
 	macInfo.mac = macAddress
 
 	resp, err := http.Get(fmt.Sprintf("https://macvendors.co/api/%s/", macAddress))
-	if err!= nil {
+	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	//result := []byte(`{"result":{"company":"Apple, Inc.","mac_prefix":"08:74:02","address":"1 Infinite Loop,Cupertino  CA  95014,US","start_hex":"087402000000","end_hex":"087402FFFFFF","country":"US","type":"MA-L"}}`)
 	result, err := ioutil.ReadAll(resp.Body)
-	if err!= nil {
+	if err != nil {
 		return nil, err
 	}
 	var rat map[string]map[string]string
 	if err := json.Unmarshal(result, &rat); err != nil {
-        return nil, err
-    }
+		return nil, err
+	}
 
 	macInfo.org.name = rat["result"]["company"]
 	macInfo.org.address = rat["result"]["address"]
