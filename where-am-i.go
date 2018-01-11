@@ -24,6 +24,8 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"encoding/base64"
+	"os"
+	"encoding/csv"
 )
 
 var q *qqwry.QQwry
@@ -79,6 +81,8 @@ func main() {
 	defer stmtCount.Close()
 
 	q = qqwry.NewQQwry("qqwry.dat")
+
+	macDBInit()
 
 	indexT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/index.html", "tmpl/footer.html")
 	guaT, _ = template.ParseFiles("tmpl/head.html", "tmpl/header.html", "tmpl/gua.html", "tmpl/footer.html")
@@ -159,12 +163,57 @@ func picHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type macInfo struct {
-	mac 	string
-	company string
+type org struct {
+	name string
 	address string
 }
+type macInfo struct {
+	mac 	string
+	org
+}
+var macVendorHashMap map[string]org
 
+func macDBInit() error {
+	f, err:= os.Open("oui.csv")
+	if err != nil {
+		panic("file open failed")
+	}
+	defer f.Close()
+
+	r := csv.NewReader(f)
+	macVendorHashMap = make(map[string]org);
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var o org = org{name:record[2], address:record[3]}
+		macVendorHashMap[record[1]] = o
+	}
+
+	return nil
+}
+
+// get vendor info from local database
+func getMacInfoLocal(macAddress string) (*macInfo, error) {
+	newMac := strings.Replace(strings.ToUpper(macAddress), ":", "", -1)
+	begin := time.Now()
+	v, ok := macVendorHashMap[newMac[:6]]
+	if !ok {
+		return nil, fmt.Errorf("%s not found.", macAddress)
+	}
+	fmt.Println(time.Now().Sub(begin))
+
+	var info *macInfo = &macInfo{mac:macAddress, org:org{name:v.name, address:v.address}}
+
+	return info, nil
+}
+
+// get vendor info from macvendors.co
 func getMacInfo(macAddress string) (*macInfo, error) {
 	var macInfo *macInfo = &macInfo{}
 	macInfo.mac = macAddress
@@ -185,8 +234,8 @@ func getMacInfo(macAddress string) (*macInfo, error) {
         return nil, err
     }
 
-	macInfo.company = rat["result"]["company"]
-	macInfo.address = rat["result"]["address"]
+	macInfo.org.name = rat["result"]["company"]
+	macInfo.org.address = rat["result"]["address"]
 
 	return macInfo, nil
 }
@@ -214,13 +263,16 @@ func macAddrHandler(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		macAddress := r.Form["mac"][0]
 
-		macInfo, err := getMacInfo(macAddress)
+		//macInfo, err := getMacInfo(macAddress)
+		macInfo, err := getMacInfoLocal(strings.TrimSpace(macAddress))
 		if err != nil {
-			io.WriteString(w, "internal error: 502")
-			return
+			tmplHash["Message"] = err.Error()
+			//io.WriteString(w, "internal error: 502")
+			//return
+		} else {
+			message := fmt.Sprintf("%s 的厂家是：%s  厂家地址是：%s", macAddress, macInfo.org.name, macInfo.org.address)
+			tmplHash["Message"] = message
 		}
-		message := fmt.Sprintf("%s 的厂家是：%s, 厂家地址是：%s", macAddress, macInfo.company, macInfo.address)
-		tmplHash["Message"] = message
 
 		if nil != macT.ExecuteTemplate(w, "mac", tmplHash) {
 			io.WriteString(w, "internal error: 502")
