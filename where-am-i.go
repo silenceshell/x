@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-	//"os"
 	"crypto/md5"
 	"encoding/hex"
 	"k8s.io/kubernetes/pkg/util/rand"
