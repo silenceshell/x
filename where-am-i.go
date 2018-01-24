@@ -200,7 +200,13 @@ func macDBInit() error {
 
 // get vendor info from local database
 func getMacInfoLocal(macAddress string) (*macInfo, error) {
-	newMac := strings.Replace(strings.ToUpper(macAddress), ":", "", -1)
+	var old string
+	if strings.Contains(macAddress, ":") {
+		old = ":"
+	} else {
+		old = "-"
+	}
+	newMac := strings.Replace(strings.ToUpper(macAddress), old, "", -1)
 	begin := time.Now()
 	v, ok := macVendorHashMap[newMac[:6]]
 	if !ok {
