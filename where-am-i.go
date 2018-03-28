@@ -15,7 +15,7 @@ import (
 	"time"
 	"crypto/md5"
 	"encoding/hex"
-	"k8s.io/kubernetes/pkg/util/rand"
+	"math/rand"
 
 	"bytes"
 	"encoding/base64"
